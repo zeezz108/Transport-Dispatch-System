@@ -202,4 +202,7 @@ python forecasting/train.py --train data/train_team_track.parquet --output model
 cd api_gateway
 python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 
+# 6. Откройте браузер и введите адрес:
+http://localhost:8000
+
 Авторы: команда KIWI-7200. Создано в рамках хакатона Wildhack
