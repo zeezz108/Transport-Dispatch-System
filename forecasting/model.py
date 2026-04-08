@@ -279,7 +279,12 @@ class HybridForecaster:
                 new_row['target_2h'] = pred
                 route_history = pd.concat([route_history, new_row], ignore_index=True)
 
-        return pd.DataFrame(predictions).sort_values('id').reset_index(drop=True)
+        result_df = pd.DataFrame(predictions).sort_values('id').reset_index(drop=True)
+
+        # Автоматически сохраняем CSV
+        self.save_predictions_to_csv(result_df)
+
+        return result_df
 
     # ── Сохранение/загрузка ───────────────────────────────────────────────────
 
@@ -292,3 +297,28 @@ class HybridForecaster:
         model = joblib.load(path)
         logger.info(f"Модель загружена: {path}")
         return model
+
+    # ── Сохранение прогноза в CSV ─────────────────────────────────────────────
+
+    def save_predictions_to_csv(self, predictions_df: pd.DataFrame, filename: str = None):
+        """
+        Сохраняет прогнозы в CSV файл.
+
+        Args:
+            predictions_df: DataFrame с колонками 'id' и 'y_pred'
+            filename: имя файла (если None, генерируется автоматически)
+        """
+        import os
+        from datetime import datetime
+
+        if filename is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"forecast_predictions_{timestamp}.csv"
+
+        predictions_df.to_csv(filename, index=False, encoding='utf-8-sig')
+        logger.info(f"📊 Прогноз сохранён в CSV: {filename}")
+        print(f"✅ CSV файл сохранён: {filename}")
+        print(f"   Всего записей: {len(predictions_df):,}")
+        print(f"   Колонки: {list(predictions_df.columns)}")
+
+        return filename

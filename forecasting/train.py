@@ -34,6 +34,18 @@ def main():
 
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     forecaster.save(args.output)
+    print("\n" + "=" * 60)
+    print("СОЗДАНИЕ ПРОГНОЗА НА ТЕСТОВЫХ ДАННЫХ")
+    print("=" * 60)
+
+    # Загружаем тестовые данные
+    test_df = pd.read_parquet("data/test_team_track.parquet")
+    test_df['timestamp'] = pd.to_datetime(test_df['timestamp'])
+
+    # Делаем прогноз
+    predictions = forecaster.predict_hybrid(test_df, train_df)
+
+    print("\n✅ Готово! CSV файл с прогнозом создан!")
     logger.info("✅ Готово!")
 
 
