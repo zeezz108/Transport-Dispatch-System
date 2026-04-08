@@ -182,7 +182,7 @@
 
 ```bash
 # 1. Перейти в папку проекта
-cd transport-dispatch-system
+cd (Ваш путь до папки)transport-dispatch-system
 
 # 2. Создать и активировать виртуальное окружение
 python -m venv venv
