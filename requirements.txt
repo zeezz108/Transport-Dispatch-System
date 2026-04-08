@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pydantic
+lightgbm
+pandas
+numpy
+scikit-learn
+apscheduler
+pyarrow
+joblib
+psycopg2-binary
+redis
+httpx
+python-dotenv

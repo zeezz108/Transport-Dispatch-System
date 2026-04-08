@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>АвтоДиспетч — Система вызова транспорта</title>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Onest:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #13161e;
+      --card:      #181c27;
+      --border:    #242838;
+      --accent:    #4f7cff;
+      --accent2:   #00d4aa;
+      --urgent:    #ff5c5c;
+      --planned:   #ffa94d;
+      --reserved:  #4f7cff;
+      --text:      #e8eaf2;
+      --muted:     #6b7280;
+      --high:      #00d4aa;
+      --medium:    #ffa94d;
+      --low:       #6b7280;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Onest', sans-serif;
+      font-size: 15px;
+      min-height: 100vh;
+    }
+
+    /* Фоновый узор */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 20% 20%, rgba(79,124,255,.07) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(0,212,170,.05) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Шапка ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13,15,20,.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      height: 64px;
+    }
+
+    .logo {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -.3px;
+      color: var(--text);
+    }
+    .logo span { color: var(--accent); }
+
+    .badge-live {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--accent2);
+      background: rgba(0,212,170,.1);
+      border: 1px solid rgba(0,212,170,.25);
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+    .badge-live::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--accent2);
+      border-radius: 50%;
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .4; transform: scale(.7); }
+    }
+
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent2);
+    }
+    .status-text { font-size: 13px; color: var(--muted); }
+
+    /* ── Основной контент ── */
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    .page-title {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      line-height: 1.2;
+    }
+    .page-subtitle { color: var(--muted); font-size: 14px; margin-bottom: 36px; }
+
+    /* ── Карточки статистики ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 36px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color .2s;
+    }
+    .stat-card:hover { border-color: rgba(79,124,255,.4); }
+
+    .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+    .stat-value {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 26px;
+      font-weight: 600;
+      line-height: 1;
+    }
+    .stat-sub { font-size: 12px; color: var(--muted); }
+
+    /* ── Секции ── */
+    .section { margin-bottom: 32px; }
+    .section-title {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Форма запроса ── */
+    .request-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+    }
+
+    .form-row { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+
+    .form-group { display: flex; flex-direction: column; gap: 7px; flex: 1; min-width: 180px; }
+    .form-label { font-size: 12px; color: var(--muted); font-weight: 500; letter-spacing: .3px; }
+
+    input, select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 14px;
+      font-family: 'Onest', sans-serif;
+      outline: none;
+      transition: border-color .2s;
+      width: 100%;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    select option { background: var(--surface); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Onest', sans-serif;
+      cursor: pointer;
+      border: none;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #3d6aee; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,124,255,.1); }
+
+    /* ── Спиннер ── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Результаты ── */
+    #results { display: none; }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .summary-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+    .pill-urgent  { background: rgba(255,92,92,.15);  color: var(--urgent);   border: 1px solid rgba(255,92,92,.3); }
+    .pill-planned { background: rgba(255,169,77,.15); color: var(--planned);  border: 1px solid rgba(255,169,77,.3); }
+    .pill-reserve { background: rgba(79,124,255,.15); color: var(--reserved); border: 1px solid rgba(79,124,255,.3); }
+    .pill-total   { background: rgba(0,212,170,.1);   color: var(--accent2);  border: 1px solid rgba(0,212,170,.25); }
+
+    /* ── Таблица заявок ── */
+    .table-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: 13px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--muted);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,.025); }
+    td { padding: 13px 16px; font-size: 13px; }
+
+    .priority-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 6px;
+      letter-spacing: .4px;
+    }
+    .p-URGENT  { background: rgba(255,92,92,.15);  color: var(--urgent);  }
+    .p-PLANNED { background: rgba(255,169,77,.15); color: var(--planned); }
+    .p-RESERVED{ background: rgba(79,124,255,.15); color: var(--reserved);}
+
+    .conf-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .c-HIGH   { color: var(--high);   background: rgba(0,212,170,.1);  }
+    .c-MEDIUM { color: var(--medium); background: rgba(255,169,77,.1); }
+    .c-LOW    { color: var(--low);    background: rgba(107,114,128,.1);}
+
+    .trucks-num {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* ── Пустое состояние и ошибка ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+
+    .error-box {
+      background: rgba(255,92,92,.08);
+      border: 1px solid rgba(255,92,92,.25);
+      border-radius: 12px;
+      padding: 16px 20px;
+      color: var(--urgent);
+      font-size: 14px;
+      display: none;
+    }
+
+    /* ── Эндпоинты ── */
+    .endpoints-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .endpoint-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      transition: border-color .2s;
+    }
+    .endpoint-card:hover { border-color: rgba(79,124,255,.4); }
+
+    .method {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 5px;
+      letter-spacing: .5px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .method-get  { background: rgba(0,212,170,.15); color: var(--accent2); }
+    .method-post { background: rgba(79,124,255,.15); color: var(--accent); }
+
+    .endpoint-info { flex: 1; }
+    .endpoint-path { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; font-family: 'Courier New', monospace; }
+    .endpoint-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* ── Адаптив ── */
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .endpoints-grid { grid-template-columns: 1fr; }
+      .page-title { font-size: 22px; }
+    }
+
+    /* ── Кнопка CSV ── */
+    .btn-csv {
+      background: #1a2a3a;
+      border: 1px solid var(--accent);
+    }
+    .btn-csv:hover {
+      background: rgba(79,124,255,.2);
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Авто<span>Диспетч</span></div>
+  <div class="badge-live">В прямом эфире</div>
+  <div class="header-right">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="status-text" id="statusText">Проверка...</span>
+  </div>
+</header>
+
+<main>
+  <div class="page-title">Система вызова транспорта</div>
+  <div class="page-subtitle">Автоматическое планирование отгрузок на основе прогнозной модели</div>
+
+  <!-- Статистика -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Статус модели</div>
+      <div class="stat-value" id="statModel" style="font-size:18px;color:var(--muted)">—</div>
+      <div class="stat-sub">HybridForecaster</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Строк в данных</div>
+      <div class="stat-value" id="statRows">—</div>
+      <div class="stat-sub">обучающая выборка</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Горизонт прогноза</div>
+      <div class="stat-value">10</div>
+      <div class="stat-sub">шагов × 2 ч = 20 ч</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Лид-тайм вызова</div>
+      <div class="stat-value">4 ч</div>
+      <div class="stat-sub">до прибытия транспорта</div>
+    </div>
+  </div>
+
+  <!-- Форма запроса -->
+  <div class="section">
+    <div class="section-title">Запрос диспетчеризации</div>
+    <div class="request-card">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Маршруты (route_id через запятую)</label>
+          <input type="text" id="routeIds" placeholder="Например: 1, 2, 3" value="1, 2, 3">
+        </div>
+        <div class="form-group" style="max-width:180px">
+          <label class="form-label">Горизонт (шагов)</label>
+          <select id="horizon">
+            <option value="5">5 шагов (10 ч)</option>
+            <option value="10" selected>10 шагов (20 ч)</option>
+          </select>
+        </div>
+        <div class="form-group" style="max-width:200px">
+          <label class="form-label">Мин. объём для заявки</label>
+          <input type="number" id="minVolume" value="1.0" step="0.5" min="0">
+        </div>
+        <button class="btn btn-primary" id="runBtn" onclick="runDispatch()">
+          <span class="spinner" id="spinner"></span>
+          <span id="btnText">▶ Получить план</span>
+        </button>
+
+        <button class="btn btn-secondary btn-csv" id="csvBtn" onclick="exportCSV()">
+          📥 Скачать CSV
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ошибка -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Результаты -->
+  <div id="results">
+    <div class="section">
+      <div class="results-header">
+        <div class="section-title" style="margin:0">План вызова транспорта</div>
+        <div class="summary-pills" id="summaryPills"></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Маршрут</th>
+              <th>Склад</th>
+              <th>Вызвать транспорт</th>
+              <th>Прибытие на склад</th>
+              <th>Машин</th>
+              <th>Объём</th>
+              <th>Приоритет</th>
+              <th>Уверенность</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState" style="display:none">
+          <div class="empty-icon">🚛</div>
+          <div class="empty-title">Заявок нет</div>
+          <div>Все прогнозные объёмы ниже минимального порога</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Эндпоинты API -->
+  <div class="section">
+    <div class="section-title">Доступные эндпоинты API</div>
+    <div class="endpoints-grid">
+      <div class="endpoint-card">
+        <span class="method method-get">GET</span>
+        <div class="endpoint-info">
+          <div class="endpoint-path">/api/v1/health</div>
+          <div class="endpoint-desc">Проверка состояния сервера и загруженной модели</div>
+        </div>
+      </div>
+      <div class="endpoint-card">
+        <span class="method method-post">POST</span>
+        <div class="endpoint-info">
+          <div class="endpoint-path">/api/v1/dispatch</div>
+          <div class="endpoint-desc">Получить план вызова транспорта по списку маршрутов</div>
+        </div>
+      </div>
+      <div class="endpoint-card">
+        <span class="method method-post">POST</span>
+        <div class="endpoint-info">
+          <div class="endpoint-path">/api/v1/dispatch/csv</div>
+          <div class="endpoint-desc">Экспорт плана вызова транспорта в CSV файл</div>
+        </div>
+      </div>
+      <div class="endpoint-card">
+        <span class="method method-get">GET</span>
+        <div class="endpoint-info">
+          <div class="endpoint-path">/api/v1/forecast/{route_id}</div>
+          <div class="endpoint-desc">Прогноз объёмов отгрузки по конкретному маршруту</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const PRIORITY_LABELS = { URGENT: 'СРОЧНО', PLANNED: 'ПЛАНОВЫЙ', RESERVED: 'РЕЗЕРВ' };
+  const CONF_LABELS = { HIGH: 'Высокая', MEDIUM: 'Средняя', LOW: 'Низкая' };
+
+  function fmt(dt) {
+    const d = new Date(dt);
+    return d.toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  }
+
+  // Проверка здоровья при загрузке
+  async function checkHealth() {
+    try {
+      const r = await fetch('/api/v1/health');
+      const d = await r.json();
+      document.getElementById('statusDot').style.background = d.model_loaded ? 'var(--accent2)' : 'var(--urgent)';
+      document.getElementById('statusText').textContent = d.model_loaded ? 'Модель загружена' : 'Модель не найдена';
+      document.getElementById('statModel').textContent = d.model_loaded ? '✓ Готова' : '✗ Ошибка';
+      document.getElementById('statModel').style.color = d.model_loaded ? 'var(--accent2)' : 'var(--urgent)';
+      if (d.train_rows) {
+        document.getElementById('statRows').textContent = d.train_rows.toLocaleString('ru-RU');
+      }
+    } catch(e) {
+      document.getElementById('statusText').textContent = 'Сервер недоступен';
+      document.getElementById('statusDot').style.background = 'var(--urgent)';
+    }
+  }
+
+  async function runDispatch() {
+    const btn = document.getElementById('runBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    const errorBox = document.getElementById('errorBox');
+    const results = document.getElementById('results');
+
+    // Парсим route_ids
+    const raw = document.getElementById('routeIds').value;
+    const route_ids = raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    if (!route_ids.length) {
+      showError('Введите хотя бы один route_id');
+      return;
+    }
+
+    const horizon_steps = parseInt(document.getElementById('horizon').value);
+    const min_volume_threshold = parseFloat(document.getElementById('minVolume').value);
+
+    // Состояние загрузки
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Прогнозирую...';
+    errorBox.style.display = 'none';
+    results.style.display = 'none';
+
+    try {
+      const resp = await fetch('/api/v1/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ route_ids, horizon_steps, min_volume_threshold })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.detail || `Ошибка ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      renderResults(data);
+
+    } catch(e) {
+      showError(e.message);
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = '▶ Получить план';
+    }
+  }
+
+  async function exportCSV() {
+    const raw = document.getElementById('routeIds').value;
+    const route_ids = raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+
+    if (!route_ids.length) {
+      showError('Введите хотя бы один route_id для экспорта');
+      return;
+    }
+
+    const horizon_steps = parseInt(document.getElementById('horizon').value);
+    const min_volume_threshold = parseFloat(document.getElementById('minVolume').value);
+
+    const errorBox = document.getElementById('errorBox');
+    errorBox.style.display = 'none';
+
+    try {
+      const resp = await fetch('/api/v1/dispatch/csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ route_ids, horizon_steps, min_volume_threshold })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.detail || `Ошибка ${resp.status}`);
+      }
+
+      // Скачиваем файл
+      const blob = await resp.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+
+      // Имя файла из заголовка или своё
+      const contentDisposition = resp.headers.get('Content-Disposition');
+      let filename = 'dispatch_plan.csv';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename=(.+)/);
+        if (match) filename = match[1];
+      }
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+    } catch(e) {
+      showError('Ошибка экспорта CSV: ' + e.message);
+    }
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = '⚠ ' + msg;
+    box.style.display = 'block';
+  }
+
+  function renderResults(data) {
+    const orders = data.dispatch_orders;
+    const results = document.getElementById('results');
+    const tbody = document.getElementById('tableBody');
+    const emptyState = document.getElementById('emptyState');
+    const pills = document.getElementById('summaryPills');
+
+    // Считаем сводку
+    const urgent  = orders.filter(o => o.priority === 'URGENT').length;
+    const planned = orders.filter(o => o.priority === 'PLANNED').length;
+    const reserve = orders.filter(o => o.priority === 'RESERVED').length;
+
+    pills.innerHTML = `
+      <span class="pill pill-total">🚛 ${data.total_trucks} машин</span>
+      ${urgent  ? `<span class="pill pill-urgent">⚡ ${urgent} срочных</span>` : ''}
+      ${planned ? `<span class="pill pill-planned">📋 ${planned} плановых</span>` : ''}
+      ${reserve ? `<span class="pill pill-reserve">🕐 ${reserve} резервов</span>` : ''}
+    `;
+
+    // Таблица
+    tbody.innerHTML = '';
+    if (!orders.length) {
+      emptyState.style.display = 'block';
+    } else {
+      emptyState.style.display = 'none';
+      orders.forEach(o => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${o.route_id}</strong></td>
+          <td>${o.office_from_id ?? '—'}</td>
+          <td>${fmt(o.dispatch_time)}</td>
+          <td>${fmt(o.arrival_time)}</td>
+          <td><span class="trucks-num">${o.n_trucks}</span></td>
+          <td style="color:var(--muted)">${o.forecast_volume.toFixed(1)}</td>
+          <td><span class="priority-badge p-${o.priority}">${PRIORITY_LABELS[o.priority]}</span></td>
+          <td><span class="conf-badge c-${o.confidence}">${CONF_LABELS[o.confidence]}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    results.style.display = 'block';
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  checkHealth();
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+
+  api_gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://dispatch:dispatch@postgres:5432/dispatch_db
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_PATH=/app/models/hybrid_forecaster.pkl
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.scheduler
+    environment:
+      - DATABASE_URL=postgresql://dispatch:dispatch@postgres:5432/dispatch_db
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_PATH=/app/models/hybrid_forecaster.pkl
+      - TMS_API_URL=${TMS_API_URL:-http://mock-tms:9000}
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: dispatch
+      POSTGRES_PASSWORD: dispatch
+      POSTGRES_DB: dispatch_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
